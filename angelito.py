@@ -25,41 +25,19 @@ def conectar_sheets():
         st.secrets["gcp_service_account"], scope
     )
     cliente = gspread.authorize(creds)
-    hoja = cliente.open_by_key(st.secrets["sheet"]["id"]).sheet1
+    hoja = cliente.open_by_key(st.secrets["sheet"]["sheet_id"]).sheet1
     return hoja
 
 sheet = conectar_sheets()
 
-# --- ESTILOS ---
-
-st.markdown("""
-    <style>
-    html, body, .stApp {
-        background-color: #fdf6f0;
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .titulo {
-        text-align: center;
-        font-size: 2.8em;
-        font-weight: 600;
-        color: #7d3c98;
-        margin-top: 1rem;
-        margin-bottom: 2rem;
-    }
-    .mensaje {
-        font-size: 1.2em;
-        color: #2c3e50;
-        text-align: center;
-        margin-top: 1rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # --- UI ---
 
-st.markdown('<div class="titulo">🎁 Ruleta del Angelito</div>', unsafe_allow_html=True)
+st.set_page_config(page_title="Angelito", page_icon="🎁", layout="centered")
+st.title("🎁 Ruleta del Angelito")
 
-clave = st.text_input("🔑 Ingresá tu clave secreta", type="password")
+st.write("Ingresá tu clave secreta para descubrir a quién te tocó cuidar 🕊️")
+
+clave = st.text_input("🔑 Clave secreta", type="password")
 
 if st.button("🎡 Girar ruleta"):
     nombre = None
@@ -76,33 +54,31 @@ if st.button("🎡 Girar ruleta"):
         posibles = [p for p in participantes if p != nombre]
         elegido = random.choice(posibles)
 
-        with st.spinner("🎡 Girando la ruleta..."):
-            time.sleep(2.5)
+        with st.spinner("Girando la ruleta..."):
+            time.sleep(2)
 
-        st.balloons()
-        st.success(f"🎉 ¡{nombre}, tu angelito secreto es: **{elegido}**!")
-        st.markdown('<div class="mensaje">🤫 Guardá el secreto hasta el día del intercambio...</div>', unsafe_allow_html=True)
+        st.success(f"🎉 {nombre}, tu angelito es: **{elegido}**")
 
         # Guardar en Google Sheets
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sheet.append_row([timestamp, nombre, elegido])
 
-# --- PANEL ADMIN ---
+# --- ADMIN ---
 
 with st.expander("🔐 Panel de administración"):
     admin = st.text_input("Contraseña admin", type="password")
     if admin == admin_password:
-        st.markdown("### 🔧 Controles de la ronda")
+        st.markdown("## Panel de control")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ Habilitar ronda"):
                 config["ronda_habilitada"] = True
                 with open("config.json", "w", encoding="utf-8") as f:
                     json.dump(config, f, indent=2, ensure_ascii=False)
-                st.success("🔓 Ronda habilitada")
+                st.success("Ronda habilitada")
         with col2:
             if st.button("🛑 Deshabilitar ronda"):
                 config["ronda_habilitada"] = False
                 with open("config.json", "w", encoding="utf-8") as f:
                     json.dump(config, f, indent=2, ensure_ascii=False)
-                st.warning("🔒 Ronda deshabilitada")
+                st.warning("Ronda deshabilitada")
