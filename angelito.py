@@ -4,7 +4,6 @@ import random
 import time
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from PIL import Image
 from datetime import datetime
 
 # --- CONFIGURACIÓN ---
@@ -32,14 +31,35 @@ def conectar_sheets():
 
 sheet = conectar_sheets()
 
-# --- UI ---
+# --- ESTILOS PERSONALIZADOS ---
 
-st.image("santuario.jpg", use_column_width=True)
-st.title("🎁 Ruleta del Angelito")
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #f9f6f2;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .titulo {
+        text-align: center;
+        font-size: 3em;
+        font-weight: bold;
+        color: #8e44ad;
+        margin-bottom: 1em;
+    }
+    .mensaje {
+        font-size: 1.2em;
+        color: #2c3e50;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- UI PRINCIPAL ---
+
+st.markdown('<div class="titulo">🎁 La Ruleta del Angelito</div>', unsafe_allow_html=True)
 
 clave = st.text_input("🔑 Ingresá tu clave secreta", type="password")
 
-if st.button("🎡 Girar"):
+if st.button("🎡 Girar ruleta"):
     nombre = None
     for participante, c in claves.items():
         if clave == c:
@@ -54,28 +74,36 @@ if st.button("🎡 Girar"):
         posibles = [p for p in participantes if p != nombre]
         elegido = random.choice(posibles)
 
-        with st.spinner("Girando la ruleta..."):
-            time.sleep(2)
+        with st.spinner("🎡 Girando la ruleta mágica..."):
+            time.sleep(2.5)
 
-        st.success(f"🎉 {nombre}, tu angelito es: **{elegido}**")
+        st.balloons()
+        st.success(f"🎉 ¡{nombre}, tu angelito secreto es: **{elegido}**!")
+        st.markdown(
+            f"<p class='mensaje'>🤫 Guardá el secreto hasta el día del intercambio...</p>",
+            unsafe_allow_html=True
+        )
 
         # Guardar en Google Sheets
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sheet.append_row([timestamp, nombre, elegido])
 
-# --- ADMIN ---
+# --- PANEL ADMIN ---
 
 with st.expander("🔐 Panel de administración"):
     admin = st.text_input("Contraseña admin", type="password")
     if admin == admin_password:
-        st.markdown("## Panel de control")
-        if st.button("✅ Habilitar ronda"):
-            config["ronda_habilitada"] = True
-            with open("config.json", "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
-            st.success("Ronda habilitada")
-        if st.button("🛑 Deshabilitar ronda"):
-            config["ronda_habilitada"] = False
-            with open("config.json", "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
-            st.warning("Ronda deshabilitada")
+        st.markdown("### 🔧 Controles de la ronda")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Habilitar ronda"):
+                config["ronda_habilitada"] = True
+                with open("config.json", "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                st.success("🔓 Ronda habilitada")
+        with col2:
+            if st.button("🛑 Deshabilitar ronda"):
+                config["ronda_habilitada"] = False
+                with open("config.json", "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                st.warning("🔒 Ronda deshabilitada")
