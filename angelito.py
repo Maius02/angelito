@@ -27,7 +27,7 @@ def conectar_sheets():
         st.secrets["gcp_service_account"], scope
     )
     cliente = gspread.authorize(creds)
-    hoja = cliente.open_by_key(st.secrets["sheet_id"]).sheet1
+    hoja = cliente.open_by_key(st.secrets["sheet"]["id"]).sheet1
     return hoja
 
 sheet = conectar_sheets()
