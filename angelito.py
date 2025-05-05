@@ -4,10 +4,12 @@ import random
 import time
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from PIL import Image
 from datetime import datetime
 
 # --- CONFIGURACIÓN ---
 
+# Cargar configuración local
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
@@ -30,38 +32,56 @@ def conectar_sheets():
 
 sheet = conectar_sheets()
 
+# --- FUNCIONES AUXILIARES ---
+
+# Función para obtener el historial de un usuario desde Google Sheets
+def obtener_historial(usuario):
+    historial = sheet.get_all_records()
+    historial_usuario = [entry for entry in historial if entry["Usuario"] == usuario]
+    return historial_usuario
+
+# Función para bloquear la elección de un usuario
+def bloquear_usuario(usuario):
+    # Esto marca al usuario como bloqueado en la hoja de Google Sheets
+    hoja = sheet
+    usuario_actual = hoja.find(usuario)
+    if usuario_actual:
+        hoja.update_cell(usuario_actual.row, 2, "Bloqueado")  # Marcar como bloqueado
+
 # --- UI ---
 
-st.set_page_config(page_title="Angelito", page_icon="🎁", layout="centered")
+st.image("santuario.jpg", use_column_width=True)
 st.title("🎁 Ruleta del Angelito")
 
-st.write("Ingresá tu clave secreta para descubrir a quién te tocó cuidar 🕊️")
+clave = st.text_input("🔑 Ingresá tu clave secreta", type="password")
 
-clave = st.text_input("🔑 Clave secreta", type="password")
+if clave not in claves.values():
+    st.error("❌ Clave incorrecta.")
+else:
+    nombre = [k for k, v in claves.items() if v == clave][0]
+    historial_usuario = obtener_historial(nombre)
 
-if st.button("🎡 Girar ruleta"):
-    nombre = None
-    for participante, c in claves.items():
-        if clave == c:
-            nombre = participante
-            break
-
-    if not nombre:
-        st.error("❌ Clave incorrecta.")
-    elif not ronda_habilitada:
-        st.warning("⚠️ La ronda todavía no está habilitada.")
+    # Verificar si el usuario ya ha elegido
+    if not historial_usuario:
+        st.warning(f"⚠️ {nombre}, aún no has girado la ruleta.")
+    elif ronda_habilitada and not any(entry['Elegido'] == '' for entry in historial_usuario):
+        st.success(f"🎉 {nombre}, ya has girado la ruleta y te ha tocado: {historial_usuario[-1]['Elegido']}")
     else:
-        posibles = [p for p in participantes if p != nombre]
-        elegido = random.choice(posibles)
+        if st.button("🎡 Girar la ruleta"):
+            posibles = [p for p in participantes if p != nombre and p not in [entry['Elegido'] for entry in historial_usuario]]
+            
+            if len(posibles) == 0:
+                st.warning("⚠️ Ya te tocó a todos los demás.")
+            else:
+                elegido = random.choice(posibles)
+                with st.spinner("Girando la ruleta..."):
+                    time.sleep(2)
 
-        with st.spinner("Girando la ruleta..."):
-            time.sleep(2)
-
-        st.success(f"🎉 {nombre}, tu angelito es: **{elegido}**")
-
-        # Guardar en Google Sheets
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([timestamp, nombre, elegido])
+                st.success(f"🎉 {nombre}, tu angelito es: **{elegido}**")
+                # Guardar en Google Sheets el nombre elegido
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                hoja.append_row([timestamp, nombre, elegido])
+                bloquear_usuario(nombre)
 
 # --- ADMIN ---
 
@@ -69,16 +89,13 @@ with st.expander("🔐 Panel de administración"):
     admin = st.text_input("Contraseña admin", type="password")
     if admin == admin_password:
         st.markdown("## Panel de control")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✅ Habilitar ronda"):
-                config["ronda_habilitada"] = True
-                with open("config.json", "w", encoding="utf-8") as f:
-                    json.dump(config, f, indent=2, ensure_ascii=False)
-                st.success("Ronda habilitada")
-        with col2:
-            if st.button("🛑 Deshabilitar ronda"):
-                config["ronda_habilitada"] = False
-                with open("config.json", "w", encoding="utf-8") as f:
-                    json.dump(config, f, indent=2, ensure_ascii=False)
-                st.warning("Ronda deshabilitada")
+        if st.button("✅ Habilitar ronda"):
+            config["ronda_habilitada"] = True
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            st.success("Ronda habilitada")
+        if st.button("🛑 Deshabilitar ronda"):
+            config["ronda_habilitada"] = False
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            st.warning("Ronda deshabilitada")
