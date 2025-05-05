@@ -8,7 +8,6 @@ from datetime import datetime
 
 # --- CONFIGURACIÓN ---
 
-# Cargar configuración local
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
@@ -31,31 +30,34 @@ def conectar_sheets():
 
 sheet = conectar_sheets()
 
-# --- ESTILOS PERSONALIZADOS ---
+# --- ESTILOS ---
 
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #f9f6f2;
+    html, body, .stApp {
+        background-color: #fdf6f0;
         font-family: 'Segoe UI', sans-serif;
     }
     .titulo {
         text-align: center;
-        font-size: 3em;
-        font-weight: bold;
-        color: #8e44ad;
-        margin-bottom: 1em;
+        font-size: 2.8em;
+        font-weight: 600;
+        color: #7d3c98;
+        margin-top: 1rem;
+        margin-bottom: 2rem;
     }
     .mensaje {
         font-size: 1.2em;
         color: #2c3e50;
+        text-align: center;
+        margin-top: 1rem;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- UI PRINCIPAL ---
+# --- UI ---
 
-st.markdown('<div class="titulo">🎁 La Ruleta del Angelito</div>', unsafe_allow_html=True)
+st.markdown('<div class="titulo">🎁 Ruleta del Angelito</div>', unsafe_allow_html=True)
 
 clave = st.text_input("🔑 Ingresá tu clave secreta", type="password")
 
@@ -74,15 +76,12 @@ if st.button("🎡 Girar ruleta"):
         posibles = [p for p in participantes if p != nombre]
         elegido = random.choice(posibles)
 
-        with st.spinner("🎡 Girando la ruleta mágica..."):
+        with st.spinner("🎡 Girando la ruleta..."):
             time.sleep(2.5)
 
         st.balloons()
         st.success(f"🎉 ¡{nombre}, tu angelito secreto es: **{elegido}**!")
-        st.markdown(
-            f"<p class='mensaje'>🤫 Guardá el secreto hasta el día del intercambio...</p>",
-            unsafe_allow_html=True
-        )
+        st.markdown('<div class="mensaje">🤫 Guardá el secreto hasta el día del intercambio...</div>', unsafe_allow_html=True)
 
         # Guardar en Google Sheets
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
