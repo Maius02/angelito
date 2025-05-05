@@ -1,76 +1,81 @@
 import streamlit as st
-import random
-import gspread
 import json
-from google.oauth2.service_account import Credentials
+import random
+import time
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from PIL import Image
+from datetime import datetime
 
-st.set_page_config(page_title="🌸 Angelito Secreto", layout="centered")
+# --- CONFIGURACIÓN ---
 
-# Paleta de colores aesthetic
-COLORES = ["#FEC8D8", "#FCD5CE", "#D8E2DC", "#A9DEF9", "#E4C1F9", "#CDEAC0"]
+# Cargar configuración local
+with open("config.json", "r", encoding="utf-8") as f:
+    config = json.load(f)
 
-# Google Sheets setup
+participantes = list(config["participantes"].keys())
+claves = config["participantes"]
+admin_password = config["admin_password"]
+ronda_habilitada = config["ronda_habilitada"]
+
+# --- CONEXIÓN GOOGLE SHEETS ---
+
 @st.cache_resource
-def conectar_google_sheets():
-    creds_json = st.secrets["google"]["credentials"]
-    sheet_id = st.secrets["google"]["sheet_id"]
-    credentials_dict = json.loads(creds_json)
-    credentials = Credentials.from_service_account_info(credentials_dict)
-    client = gspread.authorize(credentials)
-    sheet = client.open_by_key(sheet_id).sheet1
-    return sheet
+def conectar_sheets():
+    scope = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(
+        st.secrets["gcp_service_account"], scope
+    )
+    cliente = gspread.authorize(creds)
+    hoja = cliente.open_by_key(st.secrets["sheet_id"]).sheet1
+    return hoja
 
-sheet = conectar_google_sheets()
+sheet = conectar_sheets()
 
-# Funciones
-@st.cache_data(ttl=60)
-def obtener_historial():
-    return sheet.get_all_records()
+# --- UI ---
 
-def guardar_asignacion(usuario, asignado):
-    sheet.append_row([usuario, asignado])
+st.image("santuario.jpg", use_column_width=True)
+st.title("🎁 Ruleta del Angelito")
 
-def obtener_asignacion(usuario):
-    historial = obtener_historial()
-    for entrada in historial:
-        if entrada['usuario'] == usuario:
-            return entrada['asignado']
-    return None
+clave = st.text_input("🔑 Ingresá tu clave secreta", type="password")
 
-def participantes_disponibles(usuario):
-    historial = obtener_historial()
-    ya_asignados = [h['asignado'] for h in historial]
-    ya_jugaron = [h['usuario'] for h in historial]
-    restantes = [n for n in nombres if n != usuario and n not in ya_asignados and n not in ya_jugaron]
-    if not restantes:
-        restantes = [n for n in nombres if n != usuario and n not in ya_asignados]
-    return restantes
+if st.button("🎡 Girar"):
+    nombre = None
+    for participante, c in claves.items():
+        if clave == c:
+            nombre = participante
+            break
 
-# Lista de participantes (podés mantenerla también en Sheets si querés)
-nombres = ["Caro", "Luli", "Meli", "Sofi", "Flor", "Vicky", "Gime"]
+    if not nombre:
+        st.error("❌ Clave incorrecta.")
+    elif not ronda_habilitada:
+        st.warning("⚠️ La ronda todavía no está habilitada.")
+    else:
+        posibles = [p for p in participantes if p != nombre]
+        elegido = random.choice(posibles)
 
-# UI
-st.markdown("""
-    <h1 style='text-align: center; color: #D88C9A;'>🌸 Angelito Secreto 🌸</h1>
-    <p style='text-align: center;'>Elegí tu nombre, ingresá tu contraseña secreta y descubrí tu persona asignada.</p>
-""", unsafe_allow_html=True)
+        with st.spinner("Girando la ruleta..."):
+            time.sleep(2)
 
-usuario = st.selectbox("¿Quién sos?", nombres)
-clave = st.text_input("Contraseña secreta", type="password")
-boton = st.button("Girar la ruleta 🎡")
+        st.success(f"🎉 {nombre}, tu angelito es: **{elegido}**")
 
-if usuario and clave:
-    asignado_previo = obtener_asignacion(usuario)
-    if asignado_previo:
-        st.success(f"Ya te tocó: **{asignado_previo}** ✨\n\n¡Prepará tus sorpresas angelicales!")
-    elif boton:
-        posibles = participantes_disponibles(usuario)
-        if not posibles:
-            st.warning("Ya no quedan personas disponibles. ¡Todas fueron asignadas!")
-        else:
-            asignado = random.choice(posibles)
-            guardar_asignacion(usuario, asignado)
-            st.balloons()
-            st.success(f"Te tocó: **{asignado}** 🎁\n\n¡Guardá bien el secreto y sé un angelito atento! 💖")
-else:
-    st.info("Ingresá tu nombre y contraseña para comenzar.")
+        # Guardar en Google Sheets
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sheet.append_row([timestamp, nombre, elegido])
+
+# --- ADMIN ---
+
+with st.expander("🔐 Panel de administración"):
+    admin = st.text_input("Contraseña admin", type="password")
+    if admin == admin_password:
+        st.markdown("## Panel de control")
+        if st.button("✅ Habilitar ronda"):
+            config["ronda_habilitada"] = True
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            st.success("Ronda habilitada")
+        if st.button("🛑 Deshabilitar ronda"):
+            config["ronda_habilitada"] = False
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            st.warning("Ronda deshabilitada")
